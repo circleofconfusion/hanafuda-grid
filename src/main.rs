@@ -8,11 +8,16 @@ use std::env::args;
 use gio::prelude::*;
 use gio::ApplicationFlags;
 use gtk::prelude::*;
-use gtk::{Application, Image};
+use gtk::{Application, Image, Orientation, Align};
 use glib::clone;
 use cairo::ImageSurface;
 
 use hanafuda_deck_rs::HanafudaDeck;
+
+const CARD_WIDTH: i32 = 232;
+const CARD_HEIGHT: i32 = 400;
+const COLUMNS: i32 = 4;
+const CARD_PADDING: i32 = 5;
 
 fn display_cards(app: &Application, deck: &HanafudaDeck) {
     let window = gtk::ApplicationWindow::new(app);
@@ -20,17 +25,22 @@ fn display_cards(app: &Application, deck: &HanafudaDeck) {
     window.set_title("Card Grid");
     window.set_position(gtk::WindowPosition::Center);
     window.get_preferred_width();
-    window.set_default_size(630, 400);
+    window.set_default_size(CARD_WIDTH * COLUMNS + CARD_PADDING * (COLUMNS - 1), CARD_HEIGHT * 2 + CARD_PADDING);
 
     window.set_application(Some(app));
+
+    // Overall scrolling panel 
+    let scrolling_container = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+    scrolling_container.set_widget_name("scrolling-container");
     
-    let container = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-    container.set_widget_name("container");
-
+    // Box to center the card grid
+    let centering_container = gtk::Box::new(Orientation::Horizontal, 0);
+    centering_container.set_halign(Align::Center);
+    
     let card_grid = gtk::Grid::new();
-    card_grid.set_column_spacing(5);
-    card_grid.set_row_spacing(5);
-
+    card_grid.set_column_spacing(CARD_PADDING as u32);
+    card_grid.set_row_spacing(CARD_PADDING as u32);
+    
     let mut card_num = 0;
     for card in deck.cards.iter() {
         let row = card_num / 4;
@@ -39,13 +49,14 @@ fn display_cards(app: &Application, deck: &HanafudaDeck) {
         let surface = ImageSurface::create_from_png(&mut img_copy).unwrap();
         let img = Image::from_surface(Some(&surface));
         card_grid.attach(&img, column, row, 1, 1);
-
+        
         card_num += 1;
     }
-
-    container.add(&card_grid);
-
-    window.add(&container);
+    
+    // Assemble all the widgets
+    scrolling_container.add(&centering_container);
+    centering_container.add(&card_grid);
+    window.add(&scrolling_container);
 
     app.connect_activate(clone!(@weak window => move |_| {
         window.show_all();
